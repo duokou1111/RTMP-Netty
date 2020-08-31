@@ -1,30 +1,59 @@
 package com.rtmp.server.netty.handler;
 
-import com.rtmp.server.netty.model.RTMPChunkBasicHeader;
-import com.rtmp.server.netty.model.RTMPChunkMessageHeader;
+import com.rtmp.server.netty.model.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
+import io.netty.handler.codec.ReplayingDecoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-public class RTMPDecoder extends ByteToMessageDecoder {
+public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
+    private final Logger log= LoggerFactory.getLogger(ByteToMessageDecoder.class);
+    private int chunkSize = 128;
+    private RTMPChunk currentChunk;
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
-        System.out.println("readable:"+in.readableBytes());
-        RTMPChunkBasicHeader rtmpChunkBasicHeader= readChunkBasicHeader(in);
-        System.out.println("chunkType:"+rtmpChunkBasicHeader.getChunkType());
-        System.out.println("streamID:"+rtmpChunkBasicHeader.getChunkStreamId());
-        RTMPChunkMessageHeader rtmpChunkMessageHeader = readChunkMessageHeader(in,rtmpChunkBasicHeader.getChunkType());
-        System.out.println("rtmpChunkMessageHeader.getTimeStamp() = " + rtmpChunkMessageHeader.getTimeStamp());
-        System.out.println("rtmpChunkMessageHeader.getMessageStreamId() = " + rtmpChunkMessageHeader.getMessageStreamId());
-        System.out.println("rtmpChunkMessageHeader.getMessageLength() = " + rtmpChunkMessageHeader.getMessageLength());
-        System.out.println("rtmpChunkMessageHeader.getMessageTypeId() = " + rtmpChunkMessageHeader.getMessageTypeId());
-        if (rtmpChunkMessageHeader.getTimeStamp() == 0x0fff){
-            int extendTimeStamp = in.readInt();
+        RTMPDecodeState state = state();
+        if (state == null) {
+            state(RTMPDecodeState.DECODE_HEADER);
+        }
+        if (state == RTMPDecodeState.DECODE_HEADER) {
+            RTMPChunk rtmpChunk = new RTMPChunk();
+            RTMPChunkBasicHeader rtmpChunkBasicHeader = readChunkBasicHeader(in);
+            RTMPChunkMessageHeader rtmpChunkMessageHeader = readChunkMessageHeader(in, rtmpChunkBasicHeader.getChunkType());
+            System.out.println("chunkType:" + rtmpChunkBasicHeader.getChunkType());
+            System.out.println("ChunkstreamID:" + rtmpChunkBasicHeader.getChunkStreamId());
+            System.out.println("rtmpChunkMessageHeader.getTimeStamp() = " + rtmpChunkMessageHeader.getTimeStamp());
+            System.out.println("rtmpChunkMessageHeader.getMessageStreamId() = " + rtmpChunkMessageHeader.getMessageStreamId());
+            System.out.println("rtmpChunkMessageHeader.getMessageLength() = " + rtmpChunkMessageHeader.getMessageLength());
+            System.out.println("rtmpChunkMessageHeader.getMessageTypeId() = " + rtmpChunkMessageHeader.getMessageTypeId());
+            if (rtmpChunkMessageHeader.getTimeStamp() == 0x0fff) {
+                rtmpChunk.setExtendTimeStamp(in.readInt());
+            }
+            rtmpChunk.setRtmpChunkBasicHeader(rtmpChunkBasicHeader);
+            rtmpChunk.setRtmpChunkMessageHeader(rtmpChunkMessageHeader);
+            currentChunk = rtmpChunk;
+            checkpoint(RTMPDecodeState.DECODE_PAYLOAD);
+        }
+        if (state == RTMPDecodeState.DECODE_PAYLOAD){
+            byte[] payload = new byte[currentChunk.getRtmpChunkMessageHeader().getMessageLength()];
+            in.readBytes(payload);
+            currentChunk.setPayload(payload);
+            out.add(payload);
+            checkpoint(RTMPDecodeState.DECODE_HEADER);
         }
 
-        System.out.println(in.readableBytes()+"chunkSize:");
+    }
+    private void handleProtocolMessage(List<Object> out,RTMPChunk chunk,ByteBuf in){
+        switch (chunk.getRtmpChunkMessageHeader().getMessageTypeId()){
+            case 1:{//设置chunk中Data字段所能承载的最大字节数
+                int assumedChunkSize =  in.readInt() & 0x7fffffff;
+                chunkSize = assumedChunkSize;
+            }
+        }
     }
     private RTMPChunkBasicHeader readChunkBasicHeader(ByteBuf in){
         byte b = in.readByte();
@@ -39,7 +68,7 @@ public class RTMPDecoder extends ByteToMessageDecoder {
             byte thirdByte = in.readByte();
             rtmpChunkBasicHeader.setChunkStreamId((thirdByte & 0xff) << 8 + (secondByte & 0xff) + 64);
         }
-        if (isreserved == 2){
+        if (isreserved >= 2){
             rtmpChunkBasicHeader.setChunkStreamId(isreserved);
         }
         return rtmpChunkBasicHeader;
