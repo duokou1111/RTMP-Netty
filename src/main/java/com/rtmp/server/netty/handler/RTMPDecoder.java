@@ -42,18 +42,12 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
             byte[] payload = new byte[currentChunk.getRtmpChunkMessageHeader().getMessageLength()];
             in.readBytes(payload);
             currentChunk.setPayload(payload);
-            out.add(payload);
+            System.out.println("out.size().before = " + out.size());
+            out.add(currentChunk.clone());
+            System.out.println("out.size() = " + out.size());
             checkpoint(RTMPDecodeState.DECODE_HEADER);
         }
 
-    }
-    private void handleProtocolMessage(List<Object> out,RTMPChunk chunk,ByteBuf in){
-        switch (chunk.getRtmpChunkMessageHeader().getMessageTypeId()){
-            case 1:{//设置chunk中Data字段所能承载的最大字节数
-                int assumedChunkSize =  in.readInt() & 0x7fffffff;
-                chunkSize = assumedChunkSize;
-            }
-        }
     }
     private RTMPChunkBasicHeader readChunkBasicHeader(ByteBuf in){
         byte b = in.readByte();

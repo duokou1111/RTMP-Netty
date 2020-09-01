@@ -1,12 +1,15 @@
 package com.rtmp.server.netty.model;
 
-public class RTMPChunkMessageHeader {
+public class RTMPChunkMessageHeader implements Cloneable{
     private int type;
     private int timeStamp;
     private int messageLength;
     private byte messageTypeId;
     private int messageStreamId;
-
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
     public int getType() {
         return type;
     }

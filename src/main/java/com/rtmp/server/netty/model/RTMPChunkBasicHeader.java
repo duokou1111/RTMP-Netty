@@ -1,8 +1,13 @@
 package com.rtmp.server.netty.model;
 
-public class RTMPChunkBasicHeader {
+public class RTMPChunkBasicHeader implements Cloneable{
     private int chunkType;
     private int chunkStreamId;
+
+    @Override
+    protected Object clone() throws CloneNotSupportedException {
+        return super.clone();
+    }
 
     public int getChunkType() {
         return chunkType;
