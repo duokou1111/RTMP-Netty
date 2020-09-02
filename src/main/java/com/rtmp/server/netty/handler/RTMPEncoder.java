@@ -20,9 +20,10 @@ public class RTMPEncoder extends MessageToByteEncoder<RTMPChunk> {
     }
     private void handleFmtType0(RTMPChunk chunk,ByteBuf out){
         log.info("Message TypeId:{}"+chunk.getRtmpChunkMessageHeader().getMessageTypeId());
-        ByteBuf buffer = Unpooled.buffer(chunk.getSize());
         ByteBuf payload =Unpooled.buffer(chunk.getPayload().length);
+        payload.writeBytes(chunk.getPayload());
         while (payload.readableBytes()>0) {
+            ByteBuf buffer = Unpooled.buffer(chunk.getSize());
             boolean useExtraTimeStamp = false;
             final int TIME_STAMP_MAX_SIZE = 16777215; //equals 0x00ffffff
             byte[] b = Tools.encodeFmtAndCsid(chunk.getRtmpChunkBasicHeader().getChunkType(), chunk.getRtmpChunkBasicHeader().getChunkStreamId());
@@ -45,9 +46,16 @@ public class RTMPEncoder extends MessageToByteEncoder<RTMPChunk> {
             if (useExtraTimeStamp) {
                 buffer.writeInt(chunk.getRtmpChunkMessageHeader().getTimeStamp());
             }
+            System.out.println("chunk.getRtmpChunkMessageHeader().getMessageLength() = " + chunk.getRtmpChunkMessageHeader().getMessageLength());
+            System.out.println("buffer.readableBytes() = " + buffer.readableBytes());
             buffer.writeBytes(payload,Math.min(chunk.getRtmpChunkMessageHeader().getMessageLength(),buffer.readableBytes()));
+            System.out.println("---------------?");
+            for (int i=0;i<buffer.readableBytes();i++){
+                System.out.print(buffer.getByte(i)+",");
+            }
+            System.out.println();
+            System.out.println("--------------");
             out.writeBytes(buffer);
         }
-
     }
 }
