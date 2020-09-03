@@ -37,7 +37,8 @@ public class RTMPEncoder extends MessageToByteEncoder<RTMPChunk> {
                 buffer.writeMedium(chunk.getRtmpChunkMessageHeader().getTimeStamp());
             }
             //写入MessageLength
-            buffer.writeMedium(chunk.getRtmpChunkMessageHeader().getMessageLength());
+            int messageLength = Tools.calculateMessageLength((byte) 0x00, chunk.getSize(), payload.readableBytes(), useExtraTimeStamp);
+            buffer.writeMedium(messageLength);
             //写入messageType
             buffer.writeBytes(new byte[]{chunk.getRtmpChunkMessageHeader().getMessageTypeId()});
             //写入messageStreamId
@@ -46,9 +47,7 @@ public class RTMPEncoder extends MessageToByteEncoder<RTMPChunk> {
             if (useExtraTimeStamp) {
                 buffer.writeInt(chunk.getRtmpChunkMessageHeader().getTimeStamp());
             }
-            System.out.println("chunk.getRtmpChunkMessageHeader().getMessageLength() = " + chunk.getRtmpChunkMessageHeader().getMessageLength());
-            System.out.println("buffer.readableBytes() = " + buffer.readableBytes());
-            buffer.writeBytes(payload,Math.min(chunk.getRtmpChunkMessageHeader().getMessageLength(),buffer.readableBytes()));
+            buffer.writeBytes(payload,messageLength);
             System.out.println("---------------?");
             for (int i=0;i<buffer.readableBytes();i++){
                 System.out.print(buffer.getByte(i)+",");

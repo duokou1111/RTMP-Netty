@@ -6,6 +6,26 @@ public class Tools {
 	public static Integer toInt(byte[] data){
 		return  (data[0] & 0xff) << 24| (data[1] & 0xff) << 16 | (data[2] & 0xff) << 8 | data[3] & 0xff;
 	}
+	public static int calculateMessageLength(byte fmt,int chunksize,int payloadLength,boolean useExtendTimeStamp){
+		int basicHeader;
+		int messageHeader;
+		System.out.println("chunksize = " + chunksize);
+		System.out.println("payloadLength = " + payloadLength);
+		int extendTimeStamp =0;
+		if (useExtendTimeStamp){
+			extendTimeStamp = 4;
+		}
+		if (fmt == 0x00){
+			basicHeader = 1;
+			messageHeader = 11;
+		}else {
+			basicHeader =-10000000;
+			messageHeader = -10000000;
+			System.out.println("The Format has not been designed,please Check;");
+		}
+		int payloadSpareSpace = chunksize - basicHeader - messageHeader -extendTimeStamp;
+		return Math.min(payloadLength,payloadSpareSpace);
+	}
 	public static byte[] IntToBytes(int data){
 		byte[] bytes = new byte[4];
 		bytes[0] = (byte) ((data >> 24) &0xff);

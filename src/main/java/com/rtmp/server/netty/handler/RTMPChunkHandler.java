@@ -75,7 +75,6 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
         rtmpChunkBasicHeader.setChunkStreamId(PROTOCOL_CHUNK_STREAM_ID);
         RTMPChunkMessageHeader rtmpChunkMessageHeader = new RTMPChunkMessageHeader();
         rtmpChunkMessageHeader.setMessageTypeId(RTMP_COMMAND_MESSAGE);
-        rtmpChunkMessageHeader.setMessageLength(4);
         rtmpChunkMessageHeader.setMessageStreamId(PROTOCOL_MESSAGE_STREAM_ID);
         rtmpChunkMessageHeader.setTimeStamp(0);
         RTMPChunk rtmpChunk = new RTMPChunk();
