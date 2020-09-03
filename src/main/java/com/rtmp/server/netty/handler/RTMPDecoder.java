@@ -14,6 +14,7 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
     private final Logger log= LoggerFactory.getLogger(ByteToMessageDecoder.class);
     private int chunkSize = 128;
     private RTMPChunk currentChunk;
+    public static int i =1;
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         RTMPDecodeState state = state();
@@ -30,6 +31,7 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
             System.out.println("rtmpChunkMessageHeader.getMessageStreamId() = " + rtmpChunkMessageHeader.getMessageStreamId());
             System.out.println("rtmpChunkMessageHeader.getMessageLength() = " + rtmpChunkMessageHeader.getMessageLength());
             System.out.println("rtmpChunkMessageHeader.getMessageTypeId() = " + rtmpChunkMessageHeader.getMessageTypeId());
+            System.out.println("i="+i++);
             if (rtmpChunkMessageHeader.getTimeStamp() == 0x0fff) {
                 rtmpChunk.setExtendTimeStamp(in.readInt());
             }
@@ -52,7 +54,8 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
     private RTMPChunkBasicHeader readChunkBasicHeader(ByteBuf in){
         byte b = in.readByte();
         RTMPChunkBasicHeader rtmpChunkBasicHeader = new RTMPChunkBasicHeader();
-        rtmpChunkBasicHeader.setChunkType(b>>6 & 0x03);
+        rtmpChunkBasicHeader.setChunkType((b & 0xff) >> 6);
+        System.out.println("firstByte:"+b);
         int isreserved = b & 0x3f;
         if(isreserved == 0){
             rtmpChunkBasicHeader.setChunkStreamId(in.readByte() & 0xff + 64);

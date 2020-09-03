@@ -9,8 +9,6 @@ public class Tools {
 	public static int calculateMessageLength(byte fmt,int chunksize,int payloadLength,boolean useExtendTimeStamp){
 		int basicHeader;
 		int messageHeader;
-		System.out.println("chunksize = " + chunksize);
-		System.out.println("payloadLength = " + payloadLength);
 		int extendTimeStamp =0;
 		if (useExtendTimeStamp){
 			extendTimeStamp = 4;

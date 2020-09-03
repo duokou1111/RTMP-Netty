@@ -28,6 +28,8 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     private final int PROTOCOL_MESSAGE_STREAM_ID = 5;
     private final byte BAND_WIDTH_TYPE_SOFT = 0x01;
     private final String COMMAND_CONNECT ="connect";
+    private final String COMMAND_FCPUBLISH = "FCPublish";
+    private final String COMMAND_RELEASE_STREAM= "releaseStream";
     private int clientChunkSize = 128;
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RTMPChunk msg) throws Exception {
@@ -47,6 +49,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                     case COMMAND_CONNECT:{
                         log.info("CONNECT COMMAND:");
                         List<Object> result = new ArrayList<Object>();
+                        result.add("_result");
                         result.add(list.get(1));// transaction id
                         result.add(new AMF0Project().addProperty("fmsVer", "FMS/3,0,1,123").addProperty("capabilities", 31));
                         result.add(new  AMF0Project().addProperty("level", "status").addProperty("code", "NetConnection.Connect.Success")
@@ -60,6 +63,17 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         ctx.writeAndFlush(chunkSizeChunk);
                         ctx.writeAndFlush(response);
                         break;
+                    }
+                    case COMMAND_FCPUBLISH:{
+                        log.info("INTO THE COMMAND FCPUBLISH");
+                        break;
+                    }
+                    case COMMAND_RELEASE_STREAM:{
+                        log.info("INTO THE COMMAND RELEASE STREAM;");
+                        break;
+                    }
+                    default:{
+                        log.info("RTMO COMMAND MESSAGE DO NOT ADAPT!");
                     }
 
                 }
