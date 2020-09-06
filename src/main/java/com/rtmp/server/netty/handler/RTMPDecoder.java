@@ -14,6 +14,7 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
     private final Logger log= LoggerFactory.getLogger(ByteToMessageDecoder.class);
     private int chunkSize = 128;
     private RTMPChunk currentChunk;
+    private RTMPChunk previousChunk;
     public static int i =1;
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
@@ -44,9 +45,7 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
             byte[] payload = new byte[currentChunk.getRtmpChunkMessageHeader().getMessageLength()];
             in.readBytes(payload);
             currentChunk.setPayload(payload);
-            System.out.println("out.size().before = " + out.size());
             out.add(currentChunk.clone());
-            System.out.println("out.size() = " + out.size());
             checkpoint(RTMPDecodeState.DECODE_HEADER);
         }
 
@@ -58,7 +57,7 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
         System.out.println("firstByte:"+b);
         int isreserved = b & 0x3f;
         if(isreserved == 0){
-            rtmpChunkBasicHeader.setChunkStreamId(in.readByte() & 0xff + 64);
+            rtmpChunkBasicHeader.setChunkStreamId((in.readByte() & 0xff) + 64);
         }
         if (isreserved == 1){
             byte secondByte = in.readByte();
@@ -104,6 +103,10 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
             }
             case 3:{
                 rtmpChunkMessageHeader.setType(3);
+                rtmpChunkMessageHeader.setMessageLength(currentChunk.getRtmpChunkMessageHeader().getMessageLength());
+                rtmpChunkMessageHeader.setMessageStreamId(currentChunk.getRtmpChunkMessageHeader().getMessageStreamId());
+                rtmpChunkMessageHeader.setTimeStamp(currentChunk.getRtmpChunkMessageHeader().getTimeStamp());
+                rtmpChunkMessageHeader.setMessageTypeId(currentChunk.getRtmpChunkMessageHeader().getMessageTypeId());
                 break;
             }
             default:
