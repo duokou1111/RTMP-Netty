@@ -28,14 +28,19 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     private final int PROTOCOL_MESSAGE_STREAM_ID = 5;
     private final byte BAND_WIDTH_TYPE_SOFT = 0x01;
     private final String COMMAND_CONNECT ="connect";
+    private final String COMMAND_PUBLISH = "publish";
     private final String COMMAND_FCPUBLISH = "FCPublish";
     private final String COMMAND_RELEASE_STREAM= "releaseStream";
+    private final String COMMAND_CREATE_STREAM = "createStream";
     private int clientChunkSize = 128;
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RTMPChunk msg) throws Exception {
         switch (msg.getRtmpChunkMessageHeader().getMessageTypeId()){
             case SET_CHUNK_SIZE:{//设置chunk中Data字段所能承载的最大字节数
-                log.info("AssumedChunkSize:"+ Tools.toInt(msg.getPayload()));
+                int chunkSize = Tools.toInt(msg.getPayload());
+                log.info("AssumedChunkSize:"+ chunkSize);
+                RTMPDecoder rtmpDecoder =  ctx.pipeline().get(RTMPDecoder.class);
+                rtmpDecoder.setChunkSize(chunkSize);
                 break;
             }
             case ABORT_MESSAGE:{
@@ -70,6 +75,34 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                     }
                     case COMMAND_RELEASE_STREAM:{
                         log.info("INTO THE COMMAND RELEASE STREAM;");
+                        break;
+                    }
+                    case COMMAND_CREATE_STREAM:{
+                        log.info("INTO THE COMMAND CREATE STREAM!");
+                        List<Object> result = new ArrayList<Object>();
+                        result.add("_result");
+                        result.add(list.get(1));// transaction id
+                        result.add(null);// properties
+                        result.add(5);// stream id
+                        RTMPChunk response = getRTMPMessageResponse(result);
+                        ctx.writeAndFlush(response);
+                        break;
+                    }
+                    case COMMAND_PUBLISH:{
+                        log.info("INTO THE COMMAND PUBLISH");
+                        String streamType = (String) list.get(4);
+                        if (!"live".equals(streamType)) {
+                            log.error("unsupport stream type :{}", streamType);
+                            ctx.channel().disconnect();
+                        }
+                        List<Object> result = new ArrayList<>();
+                        result.add("onStatus");
+                        result.add(0);// always 0
+                        result.add(null);
+                        result.add(new AMF0Project().addProperty("level", "status").addProperty("code", "NetStream.Publish.Start").addProperty("description",
+                                "Start publishing"));
+                        RTMPChunk response = getRTMPMessageResponse(result);
+                        ctx.writeAndFlush(response);
                         break;
                     }
                     default:{

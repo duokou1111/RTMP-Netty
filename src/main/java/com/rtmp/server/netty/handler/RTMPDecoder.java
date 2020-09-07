@@ -2,6 +2,7 @@ package com.rtmp.server.netty.handler;
 
 import com.rtmp.server.netty.model.*;
 import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.ReplayingDecoder;
@@ -12,10 +13,9 @@ import java.util.List;
 
 public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
     private final Logger log= LoggerFactory.getLogger(ByteToMessageDecoder.class);
-    private int chunkSize = 128;
+    private  int chunkSize = 128;
     private RTMPChunk currentChunk;
-    private RTMPChunk previousChunk;
-    public static int i =1;
+    private ByteBuf payloadBuf;
     @Override
     protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) throws Exception {
         RTMPDecodeState state = state();
@@ -32,7 +32,6 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
             System.out.println("rtmpChunkMessageHeader.getMessageStreamId() = " + rtmpChunkMessageHeader.getMessageStreamId());
             System.out.println("rtmpChunkMessageHeader.getMessageLength() = " + rtmpChunkMessageHeader.getMessageLength());
             System.out.println("rtmpChunkMessageHeader.getMessageTypeId() = " + rtmpChunkMessageHeader.getMessageTypeId());
-            System.out.println("i="+i++);
             if (rtmpChunkMessageHeader.getTimeStamp() == 0x0fff) {
                 rtmpChunk.setExtendTimeStamp(in.readInt());
             }
@@ -42,11 +41,21 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
             checkpoint(RTMPDecodeState.DECODE_PAYLOAD);
         }
         if (state == RTMPDecodeState.DECODE_PAYLOAD){
-            byte[] payload = new byte[currentChunk.getRtmpChunkMessageHeader().getMessageLength()];
-            in.readBytes(payload);
-            currentChunk.setPayload(payload);
-            out.add(currentChunk.clone());
+            if (payloadBuf == null){
+                payloadBuf = Unpooled.buffer(currentChunk.getRtmpChunkMessageHeader().getMessageLength(),currentChunk.getRtmpChunkMessageHeader().getMessageLength());
+            }
+            int payloadSize = Math.min(currentChunk.getRtmpChunkMessageHeader().getMessageLength() - payloadBuf.readableBytes(),chunkSize);
+            byte[] payloadArr = new byte[payloadSize];
+            in.readBytes(payloadArr);
+            payloadBuf.writeBytes(payloadArr);
             checkpoint(RTMPDecodeState.DECODE_HEADER);
+            if (payloadBuf.readableBytes() == currentChunk.getRtmpChunkMessageHeader().getMessageLength()){
+                byte[] payload = new byte[currentChunk.getRtmpChunkMessageHeader().getMessageLength()];
+                payloadBuf.readBytes(payload);
+                currentChunk.setPayload(payload);
+                out.add(currentChunk.clone());
+                payloadBuf = null;
+            }
         }
 
     }
@@ -113,6 +122,9 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
                 System.out.println("Illegal Chunk Type:"+fmt);
         }
         return rtmpChunkMessageHeader;
+    }
+    public void setChunkSize(int size){
+        this.chunkSize = size;
     }
 
 }
