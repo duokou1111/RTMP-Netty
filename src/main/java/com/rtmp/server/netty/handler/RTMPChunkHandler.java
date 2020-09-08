@@ -36,7 +36,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RTMPChunk msg) throws Exception {
         switch (msg.getRtmpChunkMessageHeader().getMessageTypeId()){
-            case SET_CHUNK_SIZE:{//设置chunk中Data字段所能承载的最大字节数
+            case SET_CHUNK_SIZE:{
                 int chunkSize = Tools.toInt(msg.getPayload());
                 log.info("AssumedChunkSize:"+ chunkSize);
                 RTMPDecoder rtmpDecoder =  ctx.pipeline().get(RTMPDecoder.class);

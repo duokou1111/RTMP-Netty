@@ -108,6 +108,9 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
                 int timeStamp = in.readMedium();
                 rtmpChunkMessageHeader.setType(2);
                 rtmpChunkMessageHeader.setTimeStamp(timeStamp);
+                rtmpChunkMessageHeader.setMessageLength(currentChunk.getRtmpChunkMessageHeader().getMessageLength());
+                rtmpChunkMessageHeader.setMessageTypeId(currentChunk.getRtmpChunkMessageHeader().getMessageTypeId());
+                rtmpChunkMessageHeader.setMessageStreamId(currentChunk.getRtmpChunkMessageHeader().getMessageStreamId());
                 break;
             }
             case 3:{
