@@ -7,6 +7,25 @@ public class RTMPStream {
     private Map<String,Object> properties;
     private String app;
     private String name;
+    private String secret;
+    private String streamType;
+
+    public String getSecret() {
+        return secret;
+    }
+
+    public void setSecret(String secret) {
+        this.secret = secret;
+    }
+
+    public String getStreamType() {
+        return streamType;
+    }
+
+    public void setStreamType(String streamType) {
+        this.streamType = streamType;
+    }
+
     private List<RTMPChunk> content = new LinkedList<>();
     public void addContent(RTMPChunk rtmpChunk){
         content.add(rtmpChunk);
@@ -24,7 +43,7 @@ public class RTMPStream {
     }
 
     public void setApp(String app) {
-        this.app = app;
+        this.app = app;this.name=app;
     }
 
     public String getName() {

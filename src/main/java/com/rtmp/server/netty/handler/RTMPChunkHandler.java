@@ -37,6 +37,8 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     private final String COMMAND_FCPUBLISH = "FCPublish";
     private final String COMMAND_RELEASE_STREAM= "releaseStream";
     private final String COMMAND_CREATE_STREAM = "createStream";
+    private final String COMMAND_DELETE_STREAM = "deleteStream";
+    private final String COMMAND_UNPUBLISH_STREAM = "FCUnpublish";
     private int clientChunkSize = 128;
     private RTMPStream rtmpStream = new RTMPStream();
     @Override
@@ -96,6 +98,14 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         System.out.println("rtmpStream.getApp() = " + rtmpStream.getApp());
                         break;
                     }
+                    case COMMAND_DELETE_STREAM:{
+                        log.info("SERVER RECEIVED A DELETE STREAM COMMAND");
+                        break;
+                    }
+                    case COMMAND_UNPUBLISH_STREAM:{
+                        log.info("SERVER RECEIVED A UNPUBLISH COMMAND");
+                        break;
+                    }
                     case COMMAND_FCPUBLISH:{
                         log.info("INTO THE COMMAND FCPUBLISH");
                         break;
@@ -118,7 +128,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                     case COMMAND_PUBLISH:{
                         log.info("INTO THE COMMAND PUBLISH");
                         String streamType = (String) list.get(4);
-                        String name = (String) list.get(3);
+                        String secret = (String) list.get(3);//串流密钥
                         if (!"live".equals(streamType)) {
                             log.error("unsupport stream type :{}", streamType);
                             ctx.channel().disconnect();
@@ -131,13 +141,15 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                                 "Start publishing"));
                         RTMPChunk response = getRTMPMessageResponse(result);
                         ctx.writeAndFlush(response);
-                        String app = (String) list.get(4);
                         if (!"live".equals(streamType)) {
                             log.error("unsupport stream type :{}", streamType);
                             ctx.channel().disconnect();
                         }
-                        rtmpStream.setName(name);
-                        rtmpStream.setApp(streamType);
+                        rtmpStream.setSecret(secret);
+                        rtmpStream.setStreamType(streamType);
+                        System.out.println("rtmpStream.getSecret() = " + rtmpStream.getSecret());
+                        System.out.println("rtmpStream.getApp() = " + rtmpStream.getApp());
+                        System.out.println("rtmpStream.getStreamType() = " + rtmpStream.getStreamType());
                         break;
                     }
                     default:{
