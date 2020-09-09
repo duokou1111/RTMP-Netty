@@ -6,6 +6,7 @@ import com.rtmp.server.netty.common.Tools;
 import com.rtmp.server.netty.model.RTMPChunk;
 import com.rtmp.server.netty.model.RTMPChunkBasicHeader;
 import com.rtmp.server.netty.model.RTMPChunkMessageHeader;
+import com.rtmp.server.netty.model.RTMPStream;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -15,12 +16,16 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     private final Logger log= LoggerFactory.getLogger(RTMPChunkHandler.class);
     private final byte SET_CHUNK_SIZE = 0x01;
     private final byte ABORT_MESSAGE = 0x02;
     private final byte ACKNOWLEDGEMENT =0x03;
+    private final byte DATA_MESSAGE = 0x12;
+    private final byte AUDIO_MESSAGE = 0x08;
+    private final byte VIDEO_MESSAGE = 0x09;
     private final byte SET_ACKNOWLEDGEMENT_SIZE = 0x05;
     private final byte SET_BAND_WIDTH = 0x06;
     private final byte RTMP_COMMAND_MESSAGE = 0x14;
@@ -33,9 +38,29 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     private final String COMMAND_RELEASE_STREAM= "releaseStream";
     private final String COMMAND_CREATE_STREAM = "createStream";
     private int clientChunkSize = 128;
+    private RTMPStream rtmpStream = new RTMPStream();
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, RTMPChunk msg) throws Exception {
         switch (msg.getRtmpChunkMessageHeader().getMessageTypeId()){
+            case AUDIO_MESSAGE:{
+                log.info("SERVER RECEIVED A AUDIO MESSAGE");
+                rtmpStream.addContent(msg);
+                break;
+            }
+            case VIDEO_MESSAGE:{
+                log.info("SERVER RECEIVED A VIDEO MESSAGE");
+                rtmpStream.addContent(msg);
+                break;
+            }
+            case DATA_MESSAGE:{
+                log.info("SERVER RECEIVED A DATA MESSAGE");
+                List<Object> list = AMF0.decodeAll(Unpooled.copiedBuffer(msg.getPayload()));
+                String name = (String) list.get(0);
+                if ("@setDataFrame".equals(name)) {
+                    rtmpStream.setProperties((Map<String, Object>) list.get(2));
+                }
+                break;
+            }
             case SET_CHUNK_SIZE:{
                 int chunkSize = Tools.toInt(msg.getPayload());
                 log.info("AssumedChunkSize:"+ chunkSize);
@@ -67,6 +92,8 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         ctx.writeAndFlush(bandWidthChunk);
                         ctx.writeAndFlush(chunkSizeChunk);
                         ctx.writeAndFlush(response);
+                        rtmpStream.setApp((String) ((Map) list.get(2)).get("app"));
+                        System.out.println("rtmpStream.getApp() = " + rtmpStream.getApp());
                         break;
                     }
                     case COMMAND_FCPUBLISH:{
@@ -91,6 +118,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                     case COMMAND_PUBLISH:{
                         log.info("INTO THE COMMAND PUBLISH");
                         String streamType = (String) list.get(4);
+                        String name = (String) list.get(3);
                         if (!"live".equals(streamType)) {
                             log.error("unsupport stream type :{}", streamType);
                             ctx.channel().disconnect();
@@ -103,6 +131,13 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                                 "Start publishing"));
                         RTMPChunk response = getRTMPMessageResponse(result);
                         ctx.writeAndFlush(response);
+                        String app = (String) list.get(4);
+                        if (!"live".equals(streamType)) {
+                            log.error("unsupport stream type :{}", streamType);
+                            ctx.channel().disconnect();
+                        }
+                        rtmpStream.setName(name);
+                        rtmpStream.setApp(streamType);
                         break;
                     }
                     default:{
