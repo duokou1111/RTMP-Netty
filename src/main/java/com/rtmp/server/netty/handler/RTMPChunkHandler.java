@@ -3,10 +3,7 @@ package com.rtmp.server.netty.handler;
 import com.rtmp.server.netty.common.AMF0;
 import com.rtmp.server.netty.common.AMF0Project;
 import com.rtmp.server.netty.common.Tools;
-import com.rtmp.server.netty.model.RTMPChunk;
-import com.rtmp.server.netty.model.RTMPChunkBasicHeader;
-import com.rtmp.server.netty.model.RTMPChunkMessageHeader;
-import com.rtmp.server.netty.model.RTMPStream;
+import com.rtmp.server.netty.model.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandlerContext;
@@ -129,10 +126,10 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         log.info("INTO THE COMMAND PUBLISH");
                         String streamType = (String) list.get(4);
                         String secret = (String) list.get(3);//串流密钥
-                        if (!"live".equals(streamType)) {
+                        /*if (!"live".equals(streamType)) {
                             log.error("unsupport stream type :{}", streamType);
                             ctx.channel().disconnect();
-                        }
+                        }*/
                         List<Object> result = new ArrayList<>();
                         result.add("onStatus");
                         result.add(0);// always 0
@@ -147,6 +144,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         }
                         rtmpStream.setSecret(secret);
                         rtmpStream.setStreamType(streamType);
+                        StreamManager.getInstance().addStream(rtmpStream.getApp(),rtmpStream);
                         System.out.println("rtmpStream.getSecret() = " + rtmpStream.getSecret());
                         System.out.println("rtmpStream.getApp() = " + rtmpStream.getApp());
                         System.out.println("rtmpStream.getStreamType() = " + rtmpStream.getStreamType());

@@ -26,12 +26,12 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
             RTMPChunk rtmpChunk = new RTMPChunk();
             RTMPChunkBasicHeader rtmpChunkBasicHeader = readChunkBasicHeader(in);
             RTMPChunkMessageHeader rtmpChunkMessageHeader = readChunkMessageHeader(in, rtmpChunkBasicHeader.getChunkType());
-            System.out.println("chunkType:" + rtmpChunkBasicHeader.getChunkType());
+           /* System.out.println("chunkType:" + rtmpChunkBasicHeader.getChunkType());
             System.out.println("ChunkstreamID:" + rtmpChunkBasicHeader.getChunkStreamId());
             System.out.println("rtmpChunkMessageHeader.getTimeStamp() = " + rtmpChunkMessageHeader.getTimeStamp());
             System.out.println("rtmpChunkMessageHeader.getMessageStreamId() = " + rtmpChunkMessageHeader.getMessageStreamId());
             System.out.println("rtmpChunkMessageHeader.getMessageLength() = " + rtmpChunkMessageHeader.getMessageLength());
-            System.out.println("rtmpChunkMessageHeader.getMessageTypeId() = " + rtmpChunkMessageHeader.getMessageTypeId());
+            System.out.println("rtmpChunkMessageHeader.getMessageTypeId() = " + rtmpChunkMessageHeader.getMessageTypeId());*/
             if (rtmpChunkMessageHeader.getTimeStamp() == 0x0fff) {
                 rtmpChunk.setExtendTimeStamp(in.readInt());
             }
@@ -63,7 +63,6 @@ public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
         byte b = in.readByte();
         RTMPChunkBasicHeader rtmpChunkBasicHeader = new RTMPChunkBasicHeader();
         rtmpChunkBasicHeader.setChunkType((b & 0xff) >> 6);
-        System.out.println("firstByte:"+b);
         int isreserved = b & 0x3f;
         if(isreserved == 0){
             rtmpChunkBasicHeader.setChunkStreamId((in.readByte() & 0xff) + 64);

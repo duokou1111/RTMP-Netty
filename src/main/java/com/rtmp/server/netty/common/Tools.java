@@ -49,4 +49,13 @@ public class Tools {
 			return new byte[] { (byte) ((fmt << 6) | 1), (byte) ((csid - 64) & 0xff), (byte) ((csid - 64) >> 8) };
 		}
 	}
+	public static boolean isAACAudioSpecificConfig(byte[] payload){
+		return payload.length>1 && payload[1]==0;
+	}
+	public static boolean isKeyFrame(byte[] payload){
+		return payload[0] == 0x17;
+	}
+	public static boolean isAVCDecoderConfigurationRecord(byte[] payload){
+		return payload[1] == 0 && isKeyFrame(payload);
+	}
 }
