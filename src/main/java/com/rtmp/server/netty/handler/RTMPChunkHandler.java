@@ -155,7 +155,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         System.out.println("rtmpStream.getStreamType() = " + rtmpStream.getStreamType());
                         String jsonStr = (String) redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp());
                         RedisStreamSettings redisStreamSettings = (RedisStreamSettings) JSONObject.parse(jsonStr);
-                        if(redisStreamSettings == null || rtmpStream.getSecret().equals(redisStreamSettings.getSecret())){
+                        if(redisStreamSettings == null || !rtmpStream.getSecret().equals(redisStreamSettings.getSecret())){
                             log.info("密钥错误，关闭连接");
                             ctx.channel().disconnect();
                         }
