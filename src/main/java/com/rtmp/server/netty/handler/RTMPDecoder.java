@@ -8,9 +8,10 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.ReplayingDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
-
+@Component
 public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
     private final Logger log= LoggerFactory.getLogger(ByteToMessageDecoder.class);
     private  int chunkSize = 128;

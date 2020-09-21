@@ -7,8 +7,11 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import java.util.Date;
+import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+import java.util.Date;
+@Component
 public class RTMPShakeHandHandler extends ChannelInboundHandlerAdapter {
     private final Logger log= LoggerFactory.getLogger(RTMPShakeHandHandler.class);
     private static final byte S0 = 0x03;
@@ -25,7 +28,6 @@ public class RTMPShakeHandHandler extends ChannelInboundHandlerAdapter {
         isReceivedC1 = false;
         super.channelActive(ctx);
     }
-
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         heapBuf.writeBytes((ByteBuf)msg);
@@ -66,7 +68,7 @@ public class RTMPShakeHandHandler extends ChannelInboundHandlerAdapter {
         if (success == true){
             log.info("RTMPServer HandShake Completed!");
             ctx.fireChannelRead(heapBuf);
-            ctx.channel().pipeline().remove(this);
+            ctx.channel().pipeline().remove(RTMPShakeHandHandler.class);
         }
 
     }

@@ -1,6 +1,7 @@
 package com.rtmp.server.netty.handler;
 
 import com.alibaba.fastjson.JSONObject;
+import com.rtmp.server.netty.RTMPServer;
 import com.rtmp.server.netty.common.AMF0;
 import com.rtmp.server.netty.common.AMF0Project;
 import com.rtmp.server.netty.common.Tools;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -153,7 +155,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         System.out.println("rtmpStream.getStreamType() = " + rtmpStream.getStreamType());
                         String jsonStr = (String) redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp());
                         RedisStreamSettings redisStreamSettings = (RedisStreamSettings) JSONObject.parse(jsonStr);
-                        if(!redisStreamSettings.getSecret().equals(rtmpStream.getSecret())){
+                        if(redisStreamSettings == null || rtmpStream.getSecret().equals(redisStreamSettings.getSecret())){
                             log.info("密钥错误，关闭连接");
                             ctx.channel().disconnect();
                         }

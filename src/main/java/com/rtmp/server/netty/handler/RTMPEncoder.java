@@ -9,7 +9,9 @@ import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
+@Component
 public class RTMPEncoder extends MessageToByteEncoder<RTMPChunk> {
     private final Logger log= LoggerFactory.getLogger(RTMPEncoder.class);
     @Override
