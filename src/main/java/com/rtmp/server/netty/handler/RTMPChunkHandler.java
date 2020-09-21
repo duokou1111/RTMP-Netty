@@ -1,5 +1,6 @@
 package com.rtmp.server.netty.handler;
 
+import com.alibaba.fastjson.JSONObject;
 import com.rtmp.server.netty.common.AMF0;
 import com.rtmp.server.netty.common.AMF0Project;
 import com.rtmp.server.netty.common.Tools;
@@ -10,12 +11,18 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
+@Component
 public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
+    @Autowired
+    RedisTemplate redisTemplate;
+    private static final String REDIS_PREFIX = "STREAM:";
     private final Logger log= LoggerFactory.getLogger(RTMPChunkHandler.class);
     private final byte SET_CHUNK_SIZE = 0x01;
     private final byte ABORT_MESSAGE = 0x02;
@@ -138,16 +145,18 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                                 "Start publishing"));
                         RTMPChunk response = getRTMPMessageResponse(result);
                         ctx.writeAndFlush(response);
-                        if (!"live".equals(streamType)) {
-                            log.error("unsupport stream type :{}", streamType);
-                            ctx.channel().disconnect();
-                        }
                         rtmpStream.setSecret(secret);
                         rtmpStream.setStreamType(streamType);
                         StreamManager.getInstance().addStream(rtmpStream.getApp(),rtmpStream);
                         System.out.println("rtmpStream.getSecret() = " + rtmpStream.getSecret());
                         System.out.println("rtmpStream.getApp() = " + rtmpStream.getApp());
                         System.out.println("rtmpStream.getStreamType() = " + rtmpStream.getStreamType());
+                        String jsonStr = (String) redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp());
+                        RedisStreamSettings redisStreamSettings = (RedisStreamSettings) JSONObject.parse(jsonStr);
+                        if(!redisStreamSettings.getSecret().equals(rtmpStream.getSecret())){
+                            log.info("密钥错误，关闭连接");
+                            ctx.channel().disconnect();
+                        }
                         break;
                     }
                     default:{
