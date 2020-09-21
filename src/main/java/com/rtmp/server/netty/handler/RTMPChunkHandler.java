@@ -1,7 +1,6 @@
 package com.rtmp.server.netty.handler;
 
 import com.alibaba.fastjson.JSONObject;
-import com.rtmp.server.netty.RTMPServer;
 import com.rtmp.server.netty.common.AMF0;
 import com.rtmp.server.netty.common.AMF0Project;
 import com.rtmp.server.netty.common.Tools;
@@ -14,9 +13,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
-
-import javax.annotation.PostConstruct;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -24,7 +22,11 @@ import java.util.Map;
 public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     @Autowired
     RedisTemplate redisTemplate;
+    @Autowired
+    StringRedisTemplate stringRedisTemplate;
     private static final String REDIS_PREFIX = "STREAM:";
+    private static final String ON_LIVE_REDIS_PREFIX = "ONLIVE:";
+    private static final String ON_LIVE_REDIS_CHANNEL = "CHANNEL_UP";
     private final Logger log= LoggerFactory.getLogger(RTMPChunkHandler.class);
     private final byte SET_CHUNK_SIZE = 0x01;
     private final byte ABORT_MESSAGE = 0x02;
@@ -135,10 +137,6 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         log.info("INTO THE COMMAND PUBLISH");
                         String streamType = (String) list.get(4);
                         String secret = (String) list.get(3);//串流密钥
-                        /*if (!"live".equals(streamType)) {
-                            log.error("unsupport stream type :{}", streamType);
-                            ctx.channel().disconnect();
-                        }*/
                         List<Object> result = new ArrayList<>();
                         result.add("onStatus");
                         result.add(0);// always 0
@@ -154,10 +152,18 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         System.out.println("rtmpStream.getApp() = " + rtmpStream.getApp());
                         System.out.println("rtmpStream.getStreamType() = " + rtmpStream.getStreamType());
                         String jsonStr = (String) redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp());
-                        RedisStreamSettings redisStreamSettings = (RedisStreamSettings) JSONObject.parse(jsonStr);
+                        RedisStreamSettings redisStreamSettings = (RedisStreamSettings) JSONObject.parseObject(jsonStr,RedisStreamSettings.class);
+                        System.out.println("jsonStr = " + jsonStr);
                         if(redisStreamSettings == null || !rtmpStream.getSecret().equals(redisStreamSettings.getSecret())){
                             log.info("密钥错误，关闭连接");
                             ctx.channel().disconnect();
+                        }else{
+                            boolean isSet = redisTemplate.opsForValue().setIfAbsent(ON_LIVE_REDIS_PREFIX+redisStreamSettings.getRoomId(),jsonStr);
+                            if(isSet){
+                                stringRedisTemplate.convertAndSend(ON_LIVE_REDIS_CHANNEL,Integer.toString(redisStreamSettings.getRoomId()));
+                            }else{
+                                ctx.channel().disconnect();
+                            }
                         }
                         break;
                     }
@@ -171,6 +177,9 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
             default:
                 log.info("MessageTypeIdUnSupported!:"+msg.getRtmpChunkMessageHeader().getMessageTypeId());
         }
+    }
+    private void sendToServer(){
+
     }
     private RTMPChunk getRTMPMessageResponse(List<Object> list){
         RTMPChunkBasicHeader rtmpChunkBasicHeader = new RTMPChunkBasicHeader();
