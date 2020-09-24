@@ -8,11 +8,12 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
 import java.util.Date;
-@Component
 public class RTMPShakeHandHandler extends ChannelInboundHandlerAdapter {
     private final Logger log= LoggerFactory.getLogger(RTMPShakeHandHandler.class);
     private static final byte S0 = 0x03;

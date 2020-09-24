@@ -15,26 +15,11 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Bean;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Component;
 @Configuration
 public class RTMPServer {
-    @Autowired
-    @Lazy
-    RTMPChunkHandler rtmpChunkHandler;
-    @Autowired
-    @Lazy
-    RTMPShakeHandHandler rtmpShakeHandHandler;
-    @Autowired
-    @Lazy
-    RTMPDecoder rtmpDecoder;
-    @Autowired
-    @Lazy
-    RTMPEncoder rtmpEncoder;
-    public void init(int port) throws InterruptedException {
+    public void init(int port, ConfigurableApplicationContext configurableApplicationContext) throws InterruptedException {
         NioEventLoopGroup bossGroup = new NioEventLoopGroup(1);
         NioEventLoopGroup workerGroup = new NioEventLoopGroup();
         //创建服务器启动对象配置参数
@@ -46,13 +31,14 @@ public class RTMPServer {
                 .childHandler(new ChannelInitializer<SocketChannel>() {
                     @Override
                     protected void initChannel(SocketChannel socketChannel) throws Exception {
-                        socketChannel.pipeline().addLast(rtmpShakeHandHandler)
-                                .addLast(rtmpDecoder).addLast(rtmpEncoder)
-                                .addLast(rtmpChunkHandler);
+                        RTMPChunkHandler chunkHandler = configurableApplicationContext.getBean(RTMPChunkHandler.class);
+                        socketChannel.pipeline().addLast(new RTMPShakeHandHandler())
+                                .addLast(new RTMPDecoder()).addLast(new RTMPEncoder())
+                                .addLast(chunkHandler);
                     }
                 });//workerGroup的eventLoop对于的管道处理器
         System.out.println("....服务器isReady");
-        ChannelFuture cf = serverBootstrap.bind(9999).sync();
+        ChannelFuture cf = serverBootstrap.bind(port).sync();
         cf.channel().closeFuture().sync();
     }
 

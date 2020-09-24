@@ -4,14 +4,15 @@ import com.rtmp.server.netty.common.Tools;
 import com.rtmp.server.netty.model.RTMPChunk;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.MessageToByteEncoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-
-@Component
 public class RTMPEncoder extends MessageToByteEncoder<RTMPChunk> {
     private final Logger log= LoggerFactory.getLogger(RTMPEncoder.class);
     @Override

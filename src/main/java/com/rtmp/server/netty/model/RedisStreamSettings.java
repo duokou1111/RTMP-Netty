@@ -9,6 +9,15 @@ public class RedisStreamSettings  implements Serializable {
     private int roomId;
     private String title;
     private int tagId;
+    private String status;
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 
     public String getCoverPath() {
         return coverPath;

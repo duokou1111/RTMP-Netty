@@ -3,15 +3,17 @@ package com.rtmp.server.netty.handler;
 import com.rtmp.server.netty.model.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.codec.ByteToMessageDecoder;
 import io.netty.handler.codec.ReplayingDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-@Component
 public class RTMPDecoder extends ReplayingDecoder<RTMPDecodeState> {
     private final Logger log= LoggerFactory.getLogger(ByteToMessageDecoder.class);
     private  int chunkSize = 128;

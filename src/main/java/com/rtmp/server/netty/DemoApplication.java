@@ -14,8 +14,7 @@ public class DemoApplication {
         ConfigurableApplicationContext configurableApplicationContext = SpringApplication.run(DemoApplication.class, args);
         HTTPServer httpServer = new HTTPServer();
         httpServer.init(8080);
-        RTMPServer rtmpServer = ApplicationContextUtil.getBean(RTMPServer.class);
-       // RTMPServer rtmpServer = new RTMPServer();
-        rtmpServer.init(9999);
+        RTMPServer rtmpServer = configurableApplicationContext.getBean(RTMPServer.class);
+        rtmpServer.init(9999,configurableApplicationContext);
     }
 }

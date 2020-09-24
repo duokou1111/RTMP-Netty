@@ -7,26 +7,32 @@ import com.rtmp.server.netty.common.Tools;
 import com.rtmp.server.netty.model.*;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Scope;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 @Component
+@Scope("prototype")
 public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     @Autowired
     RedisTemplate redisTemplate;
     @Autowired
-    StringRedisTemplate stringRedisTemplate;
+    RabbitTemplate rabbitTemplate;
     private static final String REDIS_PREFIX = "STREAM:";
-    private static final String ON_LIVE_REDIS_PREFIX = "ONLIVE:";
-    private static final String ON_LIVE_REDIS_CHANNEL = "CHANNEL_UP";
     private final Logger log= LoggerFactory.getLogger(RTMPChunkHandler.class);
     private final byte SET_CHUNK_SIZE = 0x01;
     private final byte ABORT_MESSAGE = 0x02;
@@ -107,11 +113,36 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         break;
                     }
                     case COMMAND_DELETE_STREAM:{
-                        log.info("SERVER RECEIVED A DELETE STREAM COMMAND");
+                        log.info("STREAM DELETE");
                         break;
                     }
                     case COMMAND_UNPUBLISH_STREAM:{
-                        log.info("SERVER RECEIVED A UNPUBLISH COMMAND");
+                        if (rtmpStream.getApp() == null){
+                            ctx.close();
+                            return;
+                        }
+                        redisTemplate.watch(REDIS_PREFIX+rtmpStream.getApp());
+                        RedisStreamSettings redisStreamSettings = JSONObject.parseObject((String)redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp()), RedisStreamSettings.class);
+                        if(redisStreamSettings== null || !redisStreamSettings.getSecret().equals(rtmpStream.getSecret())){
+                            ctx.close();
+                            return;
+                        }
+                        SessionCallback sessionCallback = new SessionCallback() {
+                            @Override
+                            public Object execute(RedisOperations redisOperations) throws DataAccessException {
+                                redisOperations.multi();
+                                redisOperations.delete(REDIS_PREFIX+rtmpStream.getApp());
+                                try {
+                                    redisOperations.exec();
+                                    rabbitTemplate.convertAndSend("down",rtmpStream.getApp());
+                                }catch (Exception e){
+                                    ctx.close();
+                                }
+                                return null;
+                            }
+                        };
+                        redisTemplate.execute(sessionCallback);
+                        ctx.close();
                         break;
                     }
                     case COMMAND_FCPUBLISH:{
@@ -148,23 +179,31 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         rtmpStream.setSecret(secret);
                         rtmpStream.setStreamType(streamType);
                         StreamManager.getInstance().addStream(rtmpStream.getApp(),rtmpStream);
-                        System.out.println("rtmpStream.getSecret() = " + rtmpStream.getSecret());
-                        System.out.println("rtmpStream.getApp() = " + rtmpStream.getApp());
-                        System.out.println("rtmpStream.getStreamType() = " + rtmpStream.getStreamType());
+                        redisTemplate.watch(REDIS_PREFIX+rtmpStream.getApp());
                         String jsonStr = (String) redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp());
-                        RedisStreamSettings redisStreamSettings = (RedisStreamSettings) JSONObject.parseObject(jsonStr,RedisStreamSettings.class);
-                        System.out.println("jsonStr = " + jsonStr);
+                        RedisStreamSettings redisStreamSettings =  JSONObject.parseObject(jsonStr,RedisStreamSettings.class);
                         if(redisStreamSettings == null || !rtmpStream.getSecret().equals(redisStreamSettings.getSecret())){
                             log.info("密钥错误，关闭连接");
-                            ctx.channel().disconnect();
-                        }else{
-                            boolean isSet = redisTemplate.opsForValue().setIfAbsent(ON_LIVE_REDIS_PREFIX+redisStreamSettings.getRoomId(),jsonStr);
-                            if(isSet){
-                                stringRedisTemplate.convertAndSend(ON_LIVE_REDIS_CHANNEL,Integer.toString(redisStreamSettings.getRoomId()));
-                            }else{
-                                ctx.channel().disconnect();
-                            }
+                            ctx.close();
                         }
+                        redisStreamSettings.setStatus("LIVE");
+                        SessionCallback sessionCallback = new SessionCallback() {
+                            @Override
+                            public Object execute(RedisOperations redisOperations) throws DataAccessException {
+                                redisOperations.multi();
+                                redisOperations.opsForValue().set(REDIS_PREFIX+rtmpStream.getApp(),JSONObject.toJSONString(redisStreamSettings));
+                                try {
+                                    redisOperations.exec();
+                                    rabbitTemplate.convertAndSend("live",rtmpStream.getApp());
+                                }catch (Exception e){
+                                    log.info("房间号被占领，关闭连接");
+                                    return ctx.close();
+                                }
+                                return null;
+                            }
+                        };
+                        redisTemplate.execute(sessionCallback);
+
                         break;
                     }
                     default:{
