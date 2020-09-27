@@ -1,6 +1,8 @@
 package com.rtmp.server.netty.handler;
 
 import com.alibaba.fastjson.JSONObject;
+import com.rabbitmq.client.AMQP;
+import com.rabbitmq.client.Channel;
 import com.rtmp.server.netty.common.AMF0;
 import com.rtmp.server.netty.common.AMF0Project;
 import com.rtmp.server.netty.common.Tools;
@@ -12,6 +14,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.MessagePostProcessor;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
@@ -21,10 +24,14 @@ import org.springframework.data.redis.core.RedisOperations;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.SessionCallback;
 import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.messaging.Message;
+
 import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
+
 @Component
 @Scope("prototype")
 public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
@@ -32,6 +39,7 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
     RedisTemplate redisTemplate;
     @Autowired
     RabbitTemplate rabbitTemplate;
+    private static final String EXPIRATION = "6000";
     private static final String REDIS_PREFIX = "STREAM:";
     private final Logger log= LoggerFactory.getLogger(RTMPChunkHandler.class);
     private final byte SET_CHUNK_SIZE = 0x01;
@@ -123,18 +131,20 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         }
                         redisTemplate.watch(REDIS_PREFIX+rtmpStream.getApp());
                         RedisStreamSettings redisStreamSettings = JSONObject.parseObject((String)redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp()), RedisStreamSettings.class);
-                        if(redisStreamSettings== null || !redisStreamSettings.getSecret().equals(rtmpStream.getSecret())){
+                        if(redisStreamSettings== null || !redisStreamSettings.getSecret().equals(rtmpStream.getSecret()) || !"LIVE".equals(redisStreamSettings.getStatus()) ){
                             ctx.close();
                             return;
                         }
+                        redisStreamSettings.setStatus("disconnect");
+                        redisStreamSettings.setDisconnectDate(System.currentTimeMillis());
                         SessionCallback sessionCallback = new SessionCallback() {
                             @Override
                             public Object execute(RedisOperations redisOperations) throws DataAccessException {
                                 redisOperations.multi();
-                                redisOperations.delete(REDIS_PREFIX+rtmpStream.getApp());
+                                redisOperations.opsForValue().set(REDIS_PREFIX+rtmpStream.getApp(),JSONObject.toJSONString(redisStreamSettings));
                                 try {
                                     redisOperations.exec();
-                                    rabbitTemplate.convertAndSend("down",rtmpStream.getApp());
+                                    //rabbitTemplate.convertAndSend("down",JSONObject.toJSONString(redisStreamSettings));
                                 }catch (Exception e){
                                     ctx.close();
                                 }
@@ -142,7 +152,10 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                             }
                         };
                         redisTemplate.execute(sessionCallback);
-                        ctx.close();
+                        rabbitTemplate.convertAndSend("toolExchange","NON",JSONObject.toJSONString(redisStreamSettings));
+                       // rabbitTemplate.convertAndSend("toolExchange", "NON", JSONObject.toJSONString(redisStreamSettings), messagePostProcessor);
+                        System.out.println("has sent ~");
+
                         break;
                     }
                     case COMMAND_FCPUBLISH:{
@@ -182,10 +195,11 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                         redisTemplate.watch(REDIS_PREFIX+rtmpStream.getApp());
                         String jsonStr = (String) redisTemplate.opsForValue().get(REDIS_PREFIX+rtmpStream.getApp());
                         RedisStreamSettings redisStreamSettings =  JSONObject.parseObject(jsonStr,RedisStreamSettings.class);
-                        if(redisStreamSettings == null || !rtmpStream.getSecret().equals(redisStreamSettings.getSecret())){
+                        if(redisStreamSettings == null || !rtmpStream.getSecret().equals(redisStreamSettings.getSecret()) || "LIVE".equals(redisStreamSettings.getStatus())){
                             log.info("密钥错误，关闭连接");
                             ctx.close();
                         }
+                        String status = redisStreamSettings.getStatus();
                         redisStreamSettings.setStatus("LIVE");
                         SessionCallback sessionCallback = new SessionCallback() {
                             @Override
@@ -194,7 +208,8 @@ public class RTMPChunkHandler extends SimpleChannelInboundHandler<RTMPChunk> {
                                 redisOperations.opsForValue().set(REDIS_PREFIX+rtmpStream.getApp(),JSONObject.toJSONString(redisStreamSettings));
                                 try {
                                     redisOperations.exec();
-                                    rabbitTemplate.convertAndSend("live",rtmpStream.getApp());
+                                    if (!"disconnect".equals(status))
+                                        rabbitTemplate.convertAndSend("live",JSONObject.toJSONString(redisStreamSettings));
                                 }catch (Exception e){
                                     log.info("房间号被占领，关闭连接");
                                     return ctx.close();

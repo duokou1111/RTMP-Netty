@@ -10,6 +10,15 @@ public class RedisStreamSettings  implements Serializable {
     private String title;
     private int tagId;
     private String status;
+    private Long disconnectDate;
+
+    public Long getDisconnectDate() {
+        return disconnectDate;
+    }
+
+    public void setDisconnectDate(Long disconnectDate) {
+        this.disconnectDate = disconnectDate;
+    }
 
     public String getStatus() {
         return status;
