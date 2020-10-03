@@ -15,8 +15,12 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.timeout.IdleStateHandler;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.concurrent.TimeUnit;
+
 @Configuration
 public class RTMPServer {
     public void init(int port, ConfigurableApplicationContext configurableApplicationContext) throws InterruptedException {
@@ -33,6 +37,7 @@ public class RTMPServer {
                     protected void initChannel(SocketChannel socketChannel) throws Exception {
                         RTMPChunkHandler chunkHandler = configurableApplicationContext.getBean(RTMPChunkHandler.class);
                         socketChannel.pipeline().addLast(new RTMPShakeHandHandler())
+                                .addLast(new IdleStateHandler(5, 0, 0, TimeUnit.SECONDS))
                                 .addLast(new RTMPDecoder()).addLast(new RTMPEncoder())
                                 .addLast(chunkHandler);
                     }
